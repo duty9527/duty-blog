@@ -164,8 +164,8 @@ function runFromEnv() {
   });
 }
 
-// 模式 2：在 Mac 上通过 osascript 同步 Apple 备忘录指定文件夹
-function runMacNotesSync(folderNames = ['博客', 'Blog', '随笔']) {
+// 模式 2：在 Mac 上通过 osascript 同步 Apple 备忘录指定文件夹（支持增量更新与自动 git push）
+function runMacNotesSync(folderNames = ['博客', 'Blog', '随笔', '手记'], autoPush = false) {
   if (process.platform !== 'darwin') {
     console.error('⚠️ Apple 备忘录本地直连仅支持在 macOS 上运行（当前非 macOS 环境）。');
     process.exit(1);
@@ -202,34 +202,135 @@ function runMacNotesSync(folderNames = ['博客', 'Blog', '随笔']) {
     return;
   }
 
-  // 检查已有标题避免重复导入
-  const existingTitles = new Set();
+  // 建立已有文章标题 -> { file, vanblogId, updatedDate } 索引
+  const existingMap = new Map();
   for (const f of fs.readdirSync(BLOG_DIR).filter((x) => x.endsWith('.md'))) {
-    const txt = fs.readFileSync(path.join(BLOG_DIR, f), 'utf-8');
-    const m = txt.match(/^title:\s*"(.*)"/m);
-    if (m) existingTitles.add(m[1]);
+    const fullPath = path.join(BLOG_DIR, f);
+    const txt = fs.readFileSync(fullPath, 'utf-8');
+    const titleM = txt.match(/^title:\s*"(.*)"/m);
+    const idM = txt.match(/^vanblogId:\s*(\d+)/m);
+    const updM = txt.match(/^updatedDate:\s*"(.*)"/m);
+    if (titleM) {
+      existingMap.set(titleM[1], {
+        file: f,
+        id: idM ? Number.parseInt(idM[1], 10) : Number.parseInt(path.basename(f, '.md'), 10),
+        updatedMs: updM ? new Date(updM[1]).getTime() : 0,
+      });
+    }
   }
 
-  let count = 0;
+  let changedCount = 0;
   for (const n of notes) {
-    if (existingTitles.has(n.name)) continue;
+    const modMs = new Date(n.modificationDate).getTime();
+    const existing = existingMap.get(n.name);
+    if (existing && Math.abs(modMs - existing.updatedMs) < 2000) {
+      continue;
+    }
+
     let md = htmlToMarkdown(n.body);
-    // 去掉首行重复标题
     const lines = md.split('\n');
     if (lines[0]?.replace(/^#+\s*/, '').trim() === n.name.trim()) {
       md = lines.slice(1).join('\n').trim();
     }
+
     writeBlogPost({
+      customId: existing?.id,
       title: n.name,
       content: md,
       category: '随笔',
-      tags: ['备忘录', '随笔'],
+      tags: [n.folder === '手记' ? '手记' : '备忘录', '随笔'],
       pubDate: new Date(n.creationDate),
       updatedDate: new Date(n.modificationDate),
     });
-    count++;
+    changedCount++;
   }
-  console.log(`🎉 同步完成，共新增 ${count} 篇备忘录文章。`);
+
+  console.log(`🎉 同步检查完成，本次新增/更新 ${changedCount} 篇备忘录文章。`);
+
+  if (autoPush && changedCount > 0) {
+    try {
+      execFileSync('git', ['pull', '--rebase', 'origin', 'main'], { cwd: ROOT_DIR, stdio: 'inherit' });
+      execFileSync('git', ['add', 'src/content/blog/', 'public/img/'], { cwd: ROOT_DIR, stdio: 'inherit' });
+      execFileSync('git', ['commit', '-m', `sync(apple): auto sync ${changedCount} note(s) from Apple Notes`], {
+        cwd: ROOT_DIR,
+        stdio: 'inherit',
+      });
+      execFileSync('git', ['push', 'origin', 'main'], { cwd: ROOT_DIR, stdio: 'inherit' });
+      console.log('🚀 已自动推送到 GitHub，Cloudflare Pages 正在自动部署！');
+    } catch (err) {
+      console.error('⚠️ 自动 git push 失败:', err.message);
+    }
+  }
+}
+
+// 注册 macOS launchd 后台定时自动同步守护进程（每 5 分钟静默同步一次 iCloud 备忘录）
+function installMacDaemon() {
+  if (process.platform !== 'darwin') {
+    console.error('⚠️ 仅支持在 macOS 上安装 launchd 后台同步服务。');
+    process.exit(1);
+  }
+  const home = process.env.HOME || '';
+  const agentsDir = path.join(home, 'Library/LaunchAgents');
+  fs.mkdirSync(agentsDir, { recursive: true });
+  const plistPath = path.join(agentsDir, 'top.dutycsd.apple-sync.plist');
+  const nodeBin = process.execPath;
+  const scriptPath = path.join(ROOT_DIR, 'scripts/sync-apple.mjs');
+  const logPath = path.join(home, 'Library/Logs/duty-blog-apple-sync.log');
+
+  const plist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>top.dutycsd.apple-sync</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${nodeBin}</string>
+    <string>${scriptPath}</string>
+    <string>--notes</string>
+    <string>--auto-push</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>${ROOT_DIR}</string>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>${logPath}</string>
+  <key>StandardErrorPath</key>
+  <string>${logPath}</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>`;
+
+  fs.writeFileSync(plistPath, plist, 'utf-8');
+  try {
+    execFileSync('launchctl', ['unload', plistPath], { stdio: 'ignore' });
+  } catch {}
+  execFileSync('launchctl', ['load', plistPath], { stdio: 'inherit' });
+  console.log(`✅ 已成功注册 macOS 后台自动同步服务！`);
+  console.log(`   - 配置文件: ${plistPath}`);
+  console.log(`   - 运行日志: ${logPath}`);
+  console.log(`   - 效果: 你在 iPhone 或 Mac 备忘录的「博客 / 随笔 / 手记」文件夹写完内容，iCloud 同步到 Mac 后每 5 分钟会自动同步并 git push 上线！`);
+}
+
+function uninstallMacDaemon() {
+  const home = process.env.HOME || '';
+  const plistPath = path.join(home, 'Library/LaunchAgents/top.dutycsd.apple-sync.plist');
+  if (fs.existsSync(plistPath)) {
+    try {
+      execFileSync('launchctl', ['unload', plistPath], { stdio: 'ignore' });
+    } catch {}
+    fs.unlinkSync(plistPath);
+    console.log('✅ 已移除 macOS 后台自动同步服务。');
+  } else {
+    console.log('ℹ️ 当前未安装后台自动同步服务。');
+  }
 }
 
 // 模式 3：导入 Apple 手记 (Apple Journal) 导出的目录或压缩包
@@ -322,14 +423,23 @@ function runJournalImport(inputPath) {
 const args = process.argv.slice(2);
 if (args.includes('--from-env')) {
   runFromEnv();
+} else if (args.includes('--install-daemon')) {
+  installMacDaemon();
+} else if (args.includes('--uninstall-daemon')) {
+  uninstallMacDaemon();
 } else if (args.includes('--notes')) {
-  runMacNotesSync();
+  runMacNotesSync(['博客', 'Blog', '随笔', '手记'], args.includes('--auto-push'));
 } else if (args.includes('--journal')) {
   const idx = args.indexOf('--journal');
   runJournalImport(args[idx + 1]);
 } else {
   console.log(`用法:
-  1. GitHub Actions 云端发布: node scripts/sync-apple.mjs --from-env
-  2. Mac 备忘录同步:          npm run sync:notes
-  3. Apple 手记导出包导入:    npm run import:journal -- <导出zip或目录路径>`);
+  1. 开启 Mac 后台全自动监听同步 (iCloud 备忘录 -> 自动 git push):
+     npm run install:daemon
+  2. 手动触发一次 Mac 备忘录同步:
+     npm run sync:notes
+  3. 导入 Apple 手记导出包:
+     npm run import:journal -- <导出zip或目录路径>
+  4. GitHub Actions 云端发布:
+     node scripts/sync-apple.mjs --from-env`);
 }

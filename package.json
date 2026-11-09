@@ -11,6 +11,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "sync:notes": "node scripts/sync-apple.mjs --notes",
+    "install:daemon": "node scripts/sync-apple.mjs --install-daemon",
+    "uninstall:daemon": "node scripts/sync-apple.mjs --uninstall-daemon",
     "import:journal": "node scripts/sync-apple.mjs --journal"
   },
   "dependencies": {
