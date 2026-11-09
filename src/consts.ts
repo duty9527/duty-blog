@@ -52,6 +52,17 @@ export function getYearCN(d: Date): number {
   return cnTime.getUTCFullYear();
 }
 
+// Google Search Console 与 Bing Webmaster 站点验证配置
+// 可直接在此填入验证码，或在 Cloudflare Pages 环境变量中配置 PUBLIC_GOOGLE_SITE_VERIFICATION / PUBLIC_BING_SITE_VERIFICATION
+export const SEO_CONFIG = {
+  googleSiteVerification:
+    import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || '', // 对应 <meta name="google-site-verification" content="..." />
+  bingSiteVerification:
+    import.meta.env.PUBLIC_BING_SITE_VERIFICATION || '', // 对应 <meta name="msvalidate.01" content="..." />
+  baiduSiteVerification:
+    import.meta.env.PUBLIC_BAIDU_SITE_VERIFICATION || '', // 对应 <meta name="baidu-site-verification" content="..." />
+};
+
 // Giscus 评论配置（前往 https://giscus.app 获取你的 repoId 和 categoryId 后填入即可启用）
 export const GISCUS_CONFIG = {
   enabled: true,
@@ -65,4 +76,5 @@ export const GISCUS_CONFIG = {
   inputPosition: 'top',
   lang: 'zh-CN',
 };
+
 

@@ -28,7 +28,16 @@ const wordCount = (post.body || '').length;
 const readMin = Math.max(1, Math.round(wordCount / 450));
 ---
 
-<BaseLayout title={post.data.title} description={post.data.description}>
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  type="article"
+  pubDate={post.data.pubDate}
+  updatedDate={post.data.updatedDate}
+  category={post.data.category}
+  tags={post.data.tags}
+  author={post.data.author}
+>
   <article>
     <header style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.5rem;">
       <div style="margin-bottom: 0.75rem;">

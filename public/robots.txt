@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dutycsd.top/sitemap-index.xml
+Sitemap: https://dutycsd.top/sitemap.xml

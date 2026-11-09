@@ -3,16 +3,98 @@ import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import CopyCode from '../components/CopyCode.astro';
-import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+import {
+  SITE_TITLE,
+  SITE_DESCRIPTION,
+  AUTHOR_NAME,
+  AUTHOR_LOGO,
+  GITHUB_URL,
+  SEO_CONFIG,
+} from '../consts';
 
 interface Props {
   title?: string;
   description?: string;
+  type?: 'website' | 'article';
+  pubDate?: Date;
+  updatedDate?: Date;
+  category?: string;
+  tags?: string[];
+  author?: string;
+  image?: string;
 }
 
-const { title, description = SITE_DESCRIPTION } = Astro.props;
+const {
+  title,
+  description = SITE_DESCRIPTION,
+  type = 'website',
+  pubDate,
+  updatedDate,
+  category,
+  tags = [],
+  author = AUTHOR_NAME,
+  image = AUTHOR_LOGO,
+} = Astro.props;
+
 const pageTitle = title ? `${title} · ${SITE_TITLE}` : SITE_TITLE;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImageURL = new URL(image, Astro.site);
+const keywords = Array.from(
+  new Set([
+    ...(category ? [category] : []),
+    ...tags,
+    SITE_TITLE,
+    AUTHOR_NAME,
+    'Go',
+    'Linux',
+    'Rust',
+  ])
+);
+
+const jsonLd =
+  type === 'article'
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: title || SITE_TITLE,
+        description,
+        image: ogImageURL.toString(),
+        datePublished: pubDate?.toISOString(),
+        dateModified: (updatedDate || pubDate)?.toISOString(),
+        articleSection: category,
+        keywords: tags.join(', '),
+        inLanguage: 'zh-CN',
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': canonicalURL.toString(),
+        },
+        author: {
+          '@type': 'Person',
+          name: author,
+          url: GITHUB_URL,
+        },
+        publisher: {
+          '@type': 'Person',
+          name: AUTHOR_NAME,
+          logo: {
+            '@type': 'ImageObject',
+            url: new URL(AUTHOR_LOGO, Astro.site).toString(),
+          },
+        },
+      }
+    : {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: SITE_TITLE,
+        description: SITE_DESCRIPTION,
+        url: new URL('/', Astro.site).toString(),
+        inLanguage: 'zh-CN',
+        author: {
+          '@type': 'Person',
+          name: AUTHOR_NAME,
+          url: GITHUB_URL,
+        },
+      };
 ---
 
 <!doctype html>
@@ -23,6 +105,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={canonicalURL} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
     <link
       rel="alternate"
       type="application/rss+xml"
@@ -33,12 +116,80 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <title>{pageTitle}</title>
     <meta name="title" content={pageTitle} />
     <meta name="description" content={description} />
+    <meta name="author" content={author} />
+    <meta name="keywords" content={keywords.join(', ')} />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
 
-    <!-- Open Graph -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={Astro.url} />
+    <!-- Search Engine Verification (Google / Bing / Baidu) -->
+    {
+      SEO_CONFIG.googleSiteVerification && (
+        <meta
+          name="google-site-verification"
+          content={SEO_CONFIG.googleSiteVerification}
+        />
+      )
+    }
+    {
+      SEO_CONFIG.bingSiteVerification && (
+        <meta name="msvalidate.01" content={SEO_CONFIG.bingSiteVerification} />
+      )
+    }
+    {
+      SEO_CONFIG.baiduSiteVerification && (
+        <meta
+          name="baidu-site-verification"
+          content={SEO_CONFIG.baiduSiteVerification}
+        />
+      )
+    }
+
+    <!-- Open Graph / Facebook / Bing -->
+    <meta property="og:type" content={type} />
+    <meta property="og:site_name" content={SITE_TITLE} />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageURL} />
+    {
+      type === 'article' && pubDate && (
+        <meta property="article:published_time" content={pubDate.toISOString()} />
+      )
+    }
+    {
+      type === 'article' && (updatedDate || pubDate) && (
+        <meta
+          property="article:modified_time"
+          content={(updatedDate || pubDate)!.toISOString()}
+        />
+      )
+    }
+    {type === 'article' && <meta property="article:author" content={author} />}
+    {
+      type === 'article' && category && (
+        <meta property="article:section" content={category} />
+      )
+    }
+    {
+      type === 'article' &&
+        tags.map((tag) => <meta property="article:tag" content={tag} />)
+    }
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageURL} />
+
+    <!-- Schema.org JSON-LD for Google & Bing Rich Results -->
+    <script
+      type="application/ld+json"
+      is:inline
+      set:html={JSON.stringify(jsonLd)}
+    />
 
     <!-- JetBrains Mono & KaTeX CSS -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
