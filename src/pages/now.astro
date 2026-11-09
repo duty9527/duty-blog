@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Now" description="我最近在做什么 (/now)">
+  <div class="cmd-label">$ uptime && ps aux | grep duty</div>
+  <h1 style="font-size: 1.25rem; margin: 0 0 0.5rem;">~/now — 当前状态</h1>
+  <p style="font-size: 0.78rem; color: var(--muted); margin: 0 0 1.75rem;">
+    Last updated: 2026-11-09 · Inspired by <a href="https://nownownow.com/about" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: underline;">nownownow.com</a>
+  </p>
+
+  <div class="prose">
+    <h2>近期专注</h2>
+    <ul>
+      <li>搭建并打磨这个极简终端风个人博客 <code>duty-blog</code>，使用 Astro + Cloudflare Pages 部署。</li>
+      <li>持续记录边缘计算、分布式系统与日常开发中的实践笔记。</li>
+      <li>保持低噪音输入与定期输出。</li>
+    </ul>
+
+    <h2>工具栈 (Uses)</h2>
+    <ul>
+      <li><strong>Framework</strong>: Astro 5 (Static output, 0 KB default JS)</li>
+      <li><strong>Hosting & Edge CDN</strong>: Cloudflare Pages</li>
+      <li><strong>Typography</strong>: JetBrains Mono</li>
+    </ul>
+  </div>
+</BaseLayout>

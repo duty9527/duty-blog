@@ -1,0 +1,47 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+
+const rawNotes = (await getCollection('notes')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+const notes = await Promise.all(
+  rawNotes.map(async (note) => {
+    const { Content } = await render(note);
+    return { note, Content };
+  })
+);
+
+function formatDateTime(d: Date) {
+  return d.toISOString().replace('T', ' ').slice(0, 16);
+}
+---
+
+<BaseLayout title="Notes" description="短思考、阅读摘录与日常碎碎念">
+  <div class="cmd-label">$ cat ./notes/*.md</div>
+  <h1 style="font-size: 1.25rem; margin: 0 0 0.4rem;">短思考 (Notes)</h1>
+  <p style="font-size: 0.82rem; color: var(--muted); margin: 0 0 2rem;">
+    不需要长篇大论的瞬间灵感、代码片段与阅读批注。
+  </p>
+
+  <div class="notes-stream">
+    {
+      notes.map(({ note, Content }, idx) => (
+        <article>
+          <div class="note-meta">
+            {formatDateTime(note.data.pubDate)} · #{notes.length - idx}
+            {note.data.tags.length > 0 && (
+              <span style="color: var(--muted); margin-left: 0.5rem;">
+                {note.data.tags.map((t) => `#${t}`).join(' ')}
+              </span>
+            )}
+          </div>
+          <div class="prose note-body" style="font-size: 0.9rem;">
+            <Content />
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</BaseLayout>

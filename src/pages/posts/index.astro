@@ -1,0 +1,100 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+// Count tags
+const tagCounts = new Map<string, number>();
+posts.forEach((post) => {
+  post.data.tags.forEach((tag) => {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+  });
+});
+const allTags = Array.from(tagCounts.entries()).sort((a, b) => b[1] - a[1]);
+
+// Group by year
+const postsByYear = new Map<number, typeof posts>();
+posts.forEach((post) => {
+  const year = post.data.pubDate.getFullYear();
+  if (!postsByYear.has(year)) postsByYear.set(year, []);
+  postsByYear.get(year)!.push(post);
+});
+const years = Array.from(postsByYear.keys()).sort((a, b) => b - a);
+
+function formatMonthDay(d: Date) {
+  return d.toISOString().slice(5, 10);
+}
+---
+
+<BaseLayout title="Posts & Archive" description="按年份归档与标签索引的所有文章">
+  <div class="cmd-label">$ find ./posts -type f -name "*.md"</div>
+  <h1 style="font-size: 1.25rem; margin: 0 0 1.25rem;">文章归档 (Archive & Tags)</h1>
+
+  <!-- Tag Filter Bar -->
+  {
+    allTags.length > 0 && (
+      <div class="tag-bar" id="tag-filter-bar">
+        <button class="tag-pill active" data-tag="all" type="button">
+          all ({posts.length})
+        </button>
+        {allTags.map(([tag, count]) => (
+          <button class="tag-pill" data-tag={tag} type="button">
+            #{tag} ({count})
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  <!-- Year Groups -->
+  {
+    years.map((year) => (
+      <section class="year-group">
+        <div class="year-heading">[{year}]</div>
+        <ul class="post-list">
+          {postsByYear.get(year)!.map((post) => (
+            <li
+              class="post-row archive-item"
+              data-tags={post.data.tags.join(',')}
+            >
+              <div class="post-row-left">
+                <span class="post-date">{formatMonthDay(post.data.pubDate)}</span>
+                <a href={`/posts/${post.id}`} class="post-title">
+                  {post.data.title}
+                </a>
+              </div>
+              {post.data.tags.length > 0 && (
+                <span class="post-tags">
+                  {post.data.tags.map((t) => `#${t}`).join(' ')}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+
+  <script is:inline>
+    (function () {
+      const buttons = document.querySelectorAll('#tag-filter-bar .tag-pill');
+      const items = document.querySelectorAll('.archive-item');
+
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const selected = btn.getAttribute('data-tag') || 'all';
+          buttons.forEach((b) => b.classList.toggle('active', b === btn));
+
+          items.forEach((item) => {
+            const tags = (item.getAttribute('data-tags') || '').split(',');
+            const match = selected === 'all' || tags.includes(selected);
+            item.style.display = match ? 'flex' : 'none';
+          });
+        });
+      });
+    })();
+  </script>
+</BaseLayout>

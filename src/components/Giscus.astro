@@ -1,0 +1,68 @@
+---
+import { GISCUS_CONFIG } from '../consts';
+const isConfigured = Boolean(GISCUS_CONFIG.repoId && GISCUS_CONFIG.categoryId);
+---
+
+{
+  GISCUS_CONFIG.enabled && (
+    <section style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+      <div class="cmd-label">$ giscus --connect {GISCUS_CONFIG.repo}</div>
+      {isConfigured ? (
+        <div id="giscus-container" />
+      ) : (
+        <div class="panel" style="font-size: 0.8rem; color: var(--muted);">
+          <strong style="color: var(--fg);">评论区待激活 (Giscus)</strong>
+          <p style="margin: 0.4rem 0 0;">
+            在 GitHub 仓库开启 Discussions 并前往{' '}
+            <a href="https://giscus.app/zh-CN" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: underline;">
+              giscus.app
+            </a>{' '}
+            获取 <code>repoId</code> 与 <code>categoryId</code>，填入 <code>src/consts.ts</code> 即可自动启用评论。
+          </p>
+        </div>
+      )}
+    </section>
+  )
+}
+
+{
+  isConfigured && (
+    <script
+      is:inline
+      define:vars={{
+        repo: GISCUS_CONFIG.repo,
+        repoId: GISCUS_CONFIG.repoId,
+        category: GISCUS_CONFIG.category,
+        categoryId: GISCUS_CONFIG.categoryId,
+        mapping: GISCUS_CONFIG.mapping,
+        reactionsEnabled: GISCUS_CONFIG.reactionsEnabled,
+        emitMetadata: GISCUS_CONFIG.emitMetadata,
+        inputPosition: GISCUS_CONFIG.inputPosition,
+        lang: GISCUS_CONFIG.lang,
+      }}
+    >
+      (function () {
+        const container = document.getElementById('giscus-container');
+        if (!container) return;
+        const isDark = document.documentElement.classList.contains('dark');
+        const script = document.createElement('script');
+        script.src = 'https://giscus.app/client.js';
+        script.setAttribute('data-repo', repo);
+        script.setAttribute('data-repo-id', repoId);
+        script.setAttribute('data-category', category);
+        script.setAttribute('data-category-id', categoryId);
+        script.setAttribute('data-mapping', mapping);
+        script.setAttribute('data-strict', '0');
+        script.setAttribute('data-reactions-enabled', reactionsEnabled);
+        script.setAttribute('data-emit-metadata', emitMetadata);
+        script.setAttribute('data-input-position', inputPosition);
+        script.setAttribute('data-theme', isDark ? 'noborder_dark' : 'noborder_light');
+        script.setAttribute('data-lang', lang);
+        script.setAttribute(' data-loading', 'lazy');
+        script.crossOrigin = 'anonymous';
+        script.async = true;
+        container.appendChild(script);
+      })();
+    </script>
+  )
+}

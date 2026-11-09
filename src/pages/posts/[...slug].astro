@@ -1,0 +1,117 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Giscus from '../../components/Giscus.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+  );
+
+  return posts.map((post, idx) => ({
+    params: { slug: post.id },
+    props: {
+      post,
+      prevPost: posts[idx + 1] || null,
+      nextPost: posts[idx - 1] || null,
+    },
+  }));
+}
+
+const { post, prevPost, nextPost } = Astro.props;
+const { Content, headings } = await render(post);
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+
+// Estimate reading time
+const wordCount = (post.body || '').length;
+const readMin = Math.max(1, Math.round(wordCount / 450));
+
+function formatDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+---
+
+<BaseLayout title={post.data.title} description={post.data.description}>
+  <article>
+    <header style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.5rem;">
+      <div style="margin-bottom: 0.75rem;">
+        <a href="/posts" style="font-size: 0.78rem; color: var(--muted);">
+          ← cd ../posts
+        </a>
+      </div>
+
+      <h1 style="font-size: 1.35rem; line-height: 1.4; margin: 0 0 0.65rem;">
+        {post.data.title}
+      </h1>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.78rem; color: var(--muted);">
+        <span>Date: {formatDate(post.data.pubDate)}</span>
+        {
+          post.data.updatedDate && (
+            <span>Updated: {formatDate(post.data.updatedDate)}</span>
+          )
+        }
+        <span>Read: ~{readMin} min</span>
+        {
+          post.data.tags.length > 0 && (
+            <span style="color: var(--accent);">
+              {post.data.tags.map((t) => `#${t}`).join(' ')}
+            </span>
+          )
+        }
+      </div>
+    </header>
+
+    {
+      tocHeadings.length > 1 && (
+        <details class="toc-box" open>
+          <summary>TABLE OF CONTENTS (目录)</summary>
+          <ul class="toc-list">
+            {tocHeadings.map((h) => (
+              <li style={`margin-left: ${(h.depth - 2) * 1}rem;`}>
+                <a href={`#${h.slug}`}>{h.text}</a>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )
+    }
+
+    <div class="prose">
+      <Content />
+    </div>
+  </article>
+
+  <!-- Prev / Next Navigation -->
+  {
+    (prevPost || nextPost) && (
+      <nav
+        style="margin-top: 3rem; padding-top: 1.25rem; border-top: 1px dashed var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; font-size: 0.82rem;"
+        aria-label="Post Navigation"
+      >
+        <div>
+          {prevPost && (
+            <a href={`/posts/${prevPost.id}`}>
+              <span style="color: var(--muted); display: block; font-size: 0.74rem;">
+                ← older
+              </span>
+              <span>{prevPost.data.title}</span>
+            </a>
+          )}
+        </div>
+        <div style="text-align: right;">
+          {nextPost && (
+            <a href={`/posts/${nextPost.id}`}>
+              <span style="color: var(--muted); display: block; font-size: 0.74rem;">
+                newer →
+              </span>
+              <span>{nextPost.data.title}</span>
+            </a>
+          )}
+        </div>
+      </nav>
+    )
+  }
+
+  <Giscus />
+</BaseLayout>

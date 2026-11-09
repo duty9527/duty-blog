@@ -1,0 +1,89 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+
+const allPosts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const recentPosts = allPosts.slice(0, 6);
+
+const allNotes = (await getCollection('notes')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const recentNotes = await Promise.all(
+  allNotes.slice(0, 3).map(async (note) => {
+    const { Content } = await render(note);
+    return { note, Content };
+  })
+);
+
+function formatDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+---
+
+<BaseLayout>
+  <!-- Bio Section -->
+  <section style="margin-bottom: 2.75rem;">
+    <div class="cmd-label">$ cat about.txt</div>
+    <p style="margin: 0; font-size: 0.92rem;">
+      你好，这里是 <strong>duty-blog</strong> —— 我的个人终端与数字花园。在这里记录系统工程、边缘计算、工具链折腾，以及日常阅读的简短思考。全站基于
+      <span style="color: var(--accent);">Astro</span> 构建，静态部署于
+      <span style="color: var(--accent);">Cloudflare Pages</span>。
+    </p>
+  </section>
+
+  <!-- Recent Posts -->
+  <section style="margin-bottom: 2.75rem;">
+    <div class="section-bar">
+      <h2>$ ls -lt ./posts | head -n 6</h2>
+      <a href="/posts" class="more-link">all posts ({allPosts.length}) →</a>
+    </div>
+
+    <ul class="post-list">
+      {
+        recentPosts.map((post) => (
+          <li class="post-row">
+            <div class="post-row-left">
+              <span class="post-date">{formatDate(post.data.pubDate)}</span>
+              <a href={`/posts/${post.id}`} class="post-title">
+                {post.data.title}
+              </a>
+            </div>
+            {post.data.tags.length > 0 && (
+              <span class="post-tags">
+                {post.data.tags.map((t) => `#${t}`).join(' ')}
+              </span>
+            )}
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- Recent Notes -->
+  <section>
+    <div class="section-bar">
+      <h2>$ tail -n 3 ./notes.log</h2>
+      <a href="/notes" class="more-link">more notes ({allNotes.length}) →</a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      {
+        recentNotes.map(({ note, Content }) => (
+          <div class="panel">
+            <div style="display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--muted); margin-bottom: 0.35rem;">
+              <span>[{formatDate(note.data.pubDate)}]</span>
+              <span>
+                {note.data.tags.map((t) => `#${t}`).join(' ') || 'note'}
+              </span>
+            </div>
+            <div class="note-body" style="font-size: 0.88rem;">
+              <Content />
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>
