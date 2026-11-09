@@ -13,6 +13,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -61,9 +62,27 @@ function extractDescription(markdown) {
 }
 
 function htmlToMarkdown(html) {
+  fs.mkdirSync(IMG_DIR, { recursive: true });
   return html
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
+    // 自动提取 Apple 备忘录内嵌的 base64 图片并保存至 public/img/，保留原段落图文混排位置
+    .replace(
+      /<img[^>]+src=["']data:image\/([a-zA-Z0-9+]+);base64,([^"']+)["'][^>]*>/gi,
+      (_, mimeSub, b64Data) => {
+        try {
+          const cleanB64 = b64Data.replace(/\s+/g, '');
+          const buf = Buffer.from(cleanB64, 'base64');
+          const hash = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16);
+          const ext = mimeSub === 'jpeg' ? 'jpg' : mimeSub.replace('+xml', '');
+          const fileName = `note-${hash}.${ext}`;
+          fs.writeFileSync(path.join(IMG_DIR, fileName), buf);
+          return `\n\n![](/img/${fileName})\n\n`;
+        } catch {
+          return '';
+        }
+      }
+    )
     .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '# $1\n\n')
     .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '## $1\n\n')
     .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '### $1\n\n')
