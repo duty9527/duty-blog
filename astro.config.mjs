@@ -15,6 +15,20 @@ function remarkVanblogContainers() {
       if (!node || !Array.isArray(node.children)) return;
       for (const child of node.children) {
         if (child.type === 'paragraph' && Array.isArray(child.children)) {
+          // Merge adjacent text nodes (e.g. split by smartypants)
+          const merged = [];
+          for (const c of child.children) {
+            if (
+              c.type === 'text' &&
+              merged.length > 0 &&
+              merged[merged.length - 1].type === 'text'
+            ) {
+              merged[merged.length - 1].value += c.value;
+            } else {
+              merged.push(c);
+            }
+          }
+          child.children = merged;
           const first = child.children[0];
           const last = child.children[child.children.length - 1];
           if (
