@@ -70,6 +70,20 @@ function rehypeLocalizeImages() {
   return (tree) => {
     function walk(node) {
       if (!node) return;
+      if (
+        node.type === 'element' &&
+        node.tagName === 'div' &&
+        Array.isArray(node.properties?.className) &&
+        node.properties.className.includes('callout') &&
+        Array.isArray(node.children) &&
+        node.children[0]?.type === 'text'
+      ) {
+        const m = node.children[0].value.match(/^\{title=["“”']?([^"“”'}]+)["“”']?\}\s*/);
+        if (m) {
+          node.properties['data-title'] = m[1];
+          node.children[0].value = node.children[0].value.slice(m[0].length);
+        }
+      }
       if (node.type === 'element' && node.tagName === 'img' && node.properties?.src) {
         const src = String(node.properties.src);
         const prefix1 = 'https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/';
