@@ -1,10 +1,20 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
+import { CATEGORIES, formatMonthDayCN, getYearCN } from '../../consts';
 
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
+
+// Count categories (preserving all 6 VanBlog categories)
+const catCounts = new Map<string, number>();
+CATEGORIES.forEach((c) => catCounts.set(c, 0));
+posts.forEach((post) => {
+  const cat = post.data.category || '随笔';
+  catCounts.set(cat, (catCounts.get(cat) || 0) + 1);
+});
+const allCategories = Array.from(catCounts.entries());
 
 // Count tags
 const tagCounts = new Map<string, number>();
@@ -15,37 +25,57 @@ posts.forEach((post) => {
 });
 const allTags = Array.from(tagCounts.entries()).sort((a, b) => b[1] - a[1]);
 
-// Group by year
+// Group by year (in UTC+8)
 const postsByYear = new Map<number, typeof posts>();
 posts.forEach((post) => {
-  const year = post.data.pubDate.getFullYear();
+  const year = getYearCN(post.data.pubDate);
   if (!postsByYear.has(year)) postsByYear.set(year, []);
   postsByYear.get(year)!.push(post);
 });
 const years = Array.from(postsByYear.keys()).sort((a, b) => b - a);
-
-function formatMonthDay(d: Date) {
-  return d.toISOString().slice(5, 10);
-}
 ---
 
-<BaseLayout title="Posts & Archive" description="按年份归档与标签索引的所有文章">
+<BaseLayout title="归档 · 分类 · 标签" description="按分类、标签与年份时间线索引的所有文章">
   <div class="cmd-label">$ find ./posts -type f -name "*.md"</div>
-  <h1 style="font-size: 1.25rem; margin: 0 0 1.25rem;">文章归档 (Archive & Tags)</h1>
+  <h1 style="font-size: 1.25rem; margin: 0 0 1.25rem;">
+    文章归档 (Categories · Tags · Timeline)
+  </h1>
+
+  <!-- Category Filter Bar -->
+  <div style="margin-bottom: 0.4rem; font-size: 0.76rem; color: var(--muted);">
+    分类 (Categories):
+  </div>
+  <div class="tag-bar" id="cat-filter-bar" style="margin-bottom: 1rem;">
+    <button class="tag-pill active" data-cat="all" type="button">
+      全部 ({posts.length})
+    </button>
+    {
+      allCategories.map(([cat, count]) => (
+        <button class="tag-pill" data-cat={cat} type="button">
+          [{cat}] ({count})
+        </button>
+      ))
+    }
+  </div>
 
   <!-- Tag Filter Bar -->
   {
     allTags.length > 0 && (
-      <div class="tag-bar" id="tag-filter-bar">
-        <button class="tag-pill active" data-tag="all" type="button">
-          all ({posts.length})
-        </button>
-        {allTags.map(([tag, count]) => (
-          <button class="tag-pill" data-tag={tag} type="button">
-            #{tag} ({count})
+      <>
+        <div style="margin-bottom: 0.4rem; font-size: 0.76rem; color: var(--muted);">
+          标签 (Tags):
+        </div>
+        <div class="tag-bar" id="tag-filter-bar">
+          <button class="tag-pill active" data-tag="all" type="button">
+            全部标签
           </button>
-        ))}
-      </div>
+          {allTags.map(([tag, count]) => (
+            <button class="tag-pill" data-tag={tag} type="button">
+              #{tag} ({count})
+            </button>
+          ))}
+        </div>
+      </>
     )
   }
 
@@ -58,19 +88,25 @@ function formatMonthDay(d: Date) {
           {postsByYear.get(year)!.map((post) => (
             <li
               class="post-row archive-item"
+              data-cat={post.data.category}
               data-tags={post.data.tags.join(',')}
             >
               <div class="post-row-left">
-                <span class="post-date">{formatMonthDay(post.data.pubDate)}</span>
+                <span class="post-date">{formatMonthDayCN(post.data.pubDate)}</span>
+                <span style="font-size: 0.74rem; color: var(--accent); flex-shrink: 0;">
+                  [{post.data.category}]
+                </span>
                 <a href={`/posts/${post.id}`} class="post-title">
                   {post.data.title}
                 </a>
               </div>
-              {post.data.tags.length > 0 && (
-                <span class="post-tags">
-                  {post.data.tags.map((t) => `#${t}`).join(' ')}
-                </span>
-              )}
+              <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;">
+                {post.data.tags.length > 0 && (
+                  <span class="post-tags">
+                    {post.data.tags.map((t) => `#${t}`).join(' ')}
+                  </span>
+                )}
+              </div>
             </li>
           ))}
         </ul>
@@ -80,21 +116,59 @@ function formatMonthDay(d: Date) {
 
   <script is:inline>
     (function () {
-      const buttons = document.querySelectorAll('#tag-filter-bar .tag-pill');
+      const catButtons = document.querySelectorAll('#cat-filter-bar .tag-pill');
+      const tagButtons = document.querySelectorAll('#tag-filter-bar .tag-pill');
       const items = document.querySelectorAll('.archive-item');
+      const yearGroups = document.querySelectorAll('.year-group');
 
-      buttons.forEach((btn) => {
+      let activeCat = 'all';
+      let activeTag = 'all';
+
+      function applyFilters() {
+        catButtons.forEach((b) =>
+          b.classList.toggle('active', b.getAttribute('data-cat') === activeCat)
+        );
+        tagButtons.forEach((b) =>
+          b.classList.toggle('active', b.getAttribute('data-tag') === activeTag)
+        );
+
+        items.forEach((item) => {
+          const cat = item.getAttribute('data-cat') || '';
+          const tags = (item.getAttribute('data-tags') || '').split(',').filter(Boolean);
+          const matchCat = activeCat === 'all' || cat === activeCat;
+          const matchTag = activeTag === 'all' || tags.includes(activeTag);
+          item.style.display = matchCat && matchTag ? 'flex' : 'none';
+        });
+
+        yearGroups.forEach((group) => {
+          const visibleItems = group.querySelectorAll(
+            '.archive-item:not([style*="display: none"])'
+          );
+          group.style.display = visibleItems.length > 0 ? 'block' : 'none';
+        });
+      }
+
+      catButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
-          const selected = btn.getAttribute('data-tag') || 'all';
-          buttons.forEach((b) => b.classList.toggle('active', b === btn));
-
-          items.forEach((item) => {
-            const tags = (item.getAttribute('data-tags') || '').split(',');
-            const match = selected === 'all' || tags.includes(selected);
-            item.style.display = match ? 'flex' : 'none';
-          });
+          activeCat = btn.getAttribute('data-cat') || 'all';
+          applyFilters();
         });
       });
+
+      tagButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          activeTag = btn.getAttribute('data-tag') || 'all';
+          applyFilters();
+        });
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      const qCat = params.get('category');
+      const qTag = params.get('tag');
+      if (qCat) activeCat = qCat;
+      if (qTag) activeTag = qTag;
+      if (qCat || qTag) applyFilters();
     })();
   </script>
 </BaseLayout>
+

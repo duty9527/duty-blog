@@ -1,39 +1,43 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
+import { formatDateCN } from '../../consts';
 
-const rawNotes = (await getCollection('notes')).sort(
-  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
-);
+const rawEssays = (
+  await getCollection('blog', ({ data }) => !data.draft && data.category === '随笔')
+).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-const notes = await Promise.all(
-  rawNotes.map(async (note) => {
-    const { Content } = await render(note);
-    return { note, Content };
+const essays = await Promise.all(
+  rawEssays.map(async (post) => {
+    const { Content } = await render(post);
+    return { post, Content };
   })
 );
-
-function formatDateTime(d: Date) {
-  return d.toISOString().replace('T', ' ').slice(0, 16);
-}
 ---
 
-<BaseLayout title="Notes" description="短思考、阅读摘录与日常碎碎念">
-  <div class="cmd-label">$ cat ./notes/*.md</div>
-  <h1 style="font-size: 1.25rem; margin: 0 0 0.4rem;">短思考 (Notes)</h1>
+<BaseLayout title="随笔" description="日常生活随录与思考随笔">
+  <div class="cmd-label">$ cat ./posts/随笔/*.md</div>
+  <h1 style="font-size: 1.25rem; margin: 0 0 0.4rem;">随笔 (Essays & Notes)</h1>
   <p style="font-size: 0.82rem; color: var(--muted); margin: 0 0 2rem;">
-    不需要长篇大论的瞬间灵感、代码片段与阅读批注。
+    记录生活与日常感悟 —— Life Is Knowledge。
   </p>
 
   <div class="notes-stream">
     {
-      notes.map(({ note, Content }, idx) => (
+      essays.map(({ post, Content }) => (
         <article>
           <div class="note-meta">
-            {formatDateTime(note.data.pubDate)} · #{notes.length - idx}
-            {note.data.tags.length > 0 && (
+            <span>{formatDateCN(post.data.pubDate)}</span>
+            <span> · </span>
+            <a
+              href={`/posts/${post.id}`}
+              style="font-weight: 700; color: var(--fg); text-decoration: underline;"
+            >
+              {post.data.title}
+            </a>
+            {post.data.tags.length > 0 && (
               <span style="color: var(--muted); margin-left: 0.5rem;">
-                {note.data.tags.map((t) => `#${t}`).join(' ')}
+                {post.data.tags.map((t) => `#${t}`).join(' ')}
               </span>
             )}
           </div>
@@ -45,3 +49,4 @@ function formatDateTime(d: Date) {
     }
   </div>
 </BaseLayout>
+

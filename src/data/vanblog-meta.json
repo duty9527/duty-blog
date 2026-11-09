@@ -1,0 +1,277 @@
+{
+  "metas": {
+    "_id": "64864553b12f6d7d246652ea",
+    "links": [],
+    "socials": [
+      {
+        "updatedAt": "2022-10-06T13:18:28.064Z",
+        "value": "https://github.com/blue-duty",
+        "type": "github"
+      },
+      {
+        "updatedAt": "2022-10-06T13:19:58.151Z",
+        "value": "lwduty666@gmail.com",
+        "type": "email"
+      }
+    ],
+    "menus": [],
+    "rewards": [],
+    "about": {
+      "updatedAt": 1731307871003,
+      "content": "这里是小伟的随笔，一个用来学习和记录生活的地方，在这里，你可能看到他的生活琐事，也可能看到一些可有可无的knowledge，当然，主要还是用来记录生活，毕竟，Life Is Knowledge。\n\n本人曾读于西安某大学，软件工程专业，一年半的时间学习过C/C++，后又自学了基础Python，主要为了掌握基本的爬虫技能，后在阴差阳错下选择了Golang语言，并为之努力奋斗到至今。\n\nMy values：“Be Patient With Yourself. You're Working On It.”"
+    },
+    "siteInfo": {
+      "author": "独语天涯",
+      "authorDesc": "a gopher",
+      "authorLogo": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/e386cafcf85a2bb00c611c53cb279fac.u=236085137,1979895699&fm=253&app=138&size=w931&n=0&f=JPEG&fmt=auto.webp",
+      "favicon": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/favicon.png",
+      "siteName": "写写代码",
+      "siteDesc": "日常生活随录 feedId:60978413862965248+userId:41774543735911424",
+      "baseUrl": "https://dutycsd.top",
+      "beianNumber": "陕ICP备2021013504号",
+      "beianUrl": "https://beian.miit.gov.cn/",
+      "since": "2022-10-06T10:52:29.780Z",
+      "showAdminButton": "false",
+      "siteLogo": "https://dutycsd.top/static/img/10801c252eefdfaa2db272c1a688d6af.logo__1_-removebg-preview.png",
+      "payAliPay": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/623481edc79835eae4dcf2b387bd1610.photo_6194953870636069952_y.jpg",
+      "payWechat": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/c627b099983d5fb57a272d9b840397e0.photo_6194953870636069953_y.jpg",
+      "showDonateInAbout": "false",
+      "headerLeftContent": "siteName",
+      "showSubMenu": "true",
+      "openArticleLinksInNewWindow": "true",
+      "showEditButton": "false",
+      "showDonateButton": "true"
+    },
+    "viewer": 7475,
+    "visited": 5251,
+    "categories": [
+      "随笔",
+      "Linux",
+      "Go",
+      "db",
+      "Rust"
+    ],
+    "totalWordCount": 60106,
+    "__v": 0
+  },
+  "categories": [
+    {
+      "_id": "64864759eb34af1bde9e2828",
+      "id": 1,
+      "name": "随笔",
+      "type": "category",
+      "private": false,
+      "password": "",
+      "__v": 0
+    },
+    {
+      "_id": "64864759eb34af1bde9e2832",
+      "id": 2,
+      "name": "Linux",
+      "type": "category",
+      "private": false,
+      "password": "",
+      "__v": 0
+    },
+    {
+      "_id": "64864759eb34af1bde9e2837",
+      "id": 3,
+      "name": "Go",
+      "type": "category",
+      "private": false,
+      "password": "",
+      "__v": 0
+    },
+    {
+      "_id": "64864759eb34af1bde9e283c",
+      "id": 4,
+      "name": "db",
+      "type": "category",
+      "private": false,
+      "password": "",
+      "__v": 0
+    },
+    {
+      "_id": "64864759eb34af1bde9e2840",
+      "id": 5,
+      "name": "Rust",
+      "type": "category",
+      "private": false,
+      "password": "",
+      "__v": 0
+    },
+    {
+      "_id": "660385648009b9b23a4ab87d",
+      "id": 6,
+      "name": "转载",
+      "type": "category",
+      "private": false,
+      "__v": 0
+    }
+  ],
+  "statics": [
+    {
+      "_id": "65658fc631e39fc66bbd5996",
+      "staticType": "img",
+      "storageType": "picgo",
+      "fileType": "png",
+      "realPath": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/20220915005550.png",
+      "meta": {
+        "height": 430,
+        "width": 1096,
+        "type": "png",
+        "size": "36.57 KB"
+      },
+      "name": "20220915005550.png",
+      "sign": "ff528326b31783e6dbc8e987e7c2ea18",
+      "updatedAt": 1701154758367,
+      "__v": 0
+    },
+    {
+      "_id": "65658fd731e39fc66bbd5999",
+      "staticType": "img",
+      "storageType": "picgo",
+      "fileType": "png",
+      "realPath": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/562b3e34dcfb1d6591882addcceec5bc.image.png",
+      "meta": {
+        "height": 405,
+        "width": 891,
+        "type": "png",
+        "size": "53.29 KB"
+      },
+      "name": "562b3e34dcfb1d6591882addcceec5bc.image.png",
+      "sign": "562b3e34dcfb1d6591882addcceec5bc",
+      "updatedAt": 1701154775245,
+      "__v": 0
+    },
+    {
+      "_id": "65658fd831e39fc66bbd599c",
+      "staticType": "img",
+      "storageType": "picgo",
+      "fileType": "png",
+      "realPath": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/5c9bf6c791d4c2f6c549fcaee931f72b.image.png",
+      "meta": {
+        "height": 398,
+        "width": 658,
+        "type": "png",
+        "size": "32.24 KB"
+      },
+      "name": "5c9bf6c791d4c2f6c549fcaee931f72b.image.png",
+      "sign": "5c9bf6c791d4c2f6c549fcaee931f72b",
+      "updatedAt": 1701154776765,
+      "__v": 0
+    },
+    {
+      "_id": "65658fda31e39fc66bbd599f",
+      "staticType": "img",
+      "storageType": "picgo",
+      "fileType": "png",
+      "realPath": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/4e3c614e97797fd6e0e699b9ee258ea0.image.png",
+      "meta": {
+        "height": 325,
+        "width": 428,
+        "type": "png",
+        "size": "29.46 KB"
+      },
+      "name": "4e3c614e97797fd6e0e699b9ee258ea0.image.png",
+      "sign": "4e3c614e97797fd6e0e699b9ee258ea0",
+      "updatedAt": 1701154778307,
+      "__v": 0
+    },
+    {
+      "_id": "65658fdb31e39fc66bbd59a2",
+      "staticType": "img",
+      "storageType": "picgo",
+      "fileType": "png",
+      "realPath": "https://gcore.jsdelivr.net/gh/blue-duty/gitnote-images/img/07cc95c1ee8e64d55fb010c8aa4719c6.image.png",
+      "meta": {
+        "height": 163,
+        "width": 308,
+        "type": "png",
+        "size": "8.87 KB"
+      },
+      "name": "07cc95c1ee8e64d55fb010c8aa4719c6.image.png",
+      "sign": "07cc95c1ee8e64d55fb010c8aa4719c6",
+      "updatedAt": 1701154779459,
+      "__v": 0
+    }
+  ],
+  "settings": [
+    {
+      "_id": "648643b92fdec720f38a1a4c",
+      "type": "isr",
+      "value": {
+        "mode": "onDemand"
+      },
+      "__v": 0
+    },
+    {
+      "_id": "648643b92fdec720f38a1a4e",
+      "type": "version",
+      "value": {
+        "version": "v0.53.0"
+      },
+      "__v": 0
+    },
+    {
+      "_id": "6486451db12f6d7d246652db",
+      "type": "static",
+      "value": {
+        "storageType": "local",
+        "picgoConfig": null,
+        "enableWaterMark": false,
+        "enableWebp": true,
+        "waterMarkText": null,
+        "picgoPlugins": null,
+        "_id": null,
+        "__v": null
+      },
+      "__v": 0
+    },
+    {
+      "_id": "64864553b12f6d7d246652ed",
+      "type": "menu",
+      "value": {
+        "data": [
+          {
+            "id": 0,
+            "name": "首页",
+            "value": "/",
+            "level": 0
+          },
+          {
+            "id": 1,
+            "name": "标签",
+            "value": "/tag",
+            "level": 0
+          },
+          {
+            "id": 2,
+            "name": "分类",
+            "value": "/category",
+            "level": 0
+          },
+          {
+            "id": 3,
+            "name": "时间线",
+            "value": "/timeline",
+            "level": 0
+          },
+          {
+            "id": 4,
+            "name": "友链",
+            "value": "/link",
+            "level": 0
+          },
+          {
+            "id": 5,
+            "name": "关于",
+            "value": "/about",
+            "level": 0
+          }
+        ]
+      },
+      "__v": 0
+    }
+  ]
+}

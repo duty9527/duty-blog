@@ -1,0 +1,58 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Giscus from '../components/Giscus.astro';
+import {
+  ABOUT_PARAGRAPHS,
+  AUTHOR_NAME,
+  AUTHOR_DESC,
+  AUTHOR_LOGO,
+  AUTHOR_EMAIL,
+  GITHUB_URL,
+  OLD_GITHUB_URL,
+  SINCE_DATE,
+  VANBLOG_STATS,
+  formatDateCN,
+} from '../consts';
+
+const aboutUpdatedDate = formatDateCN(new Date(VANBLOG_STATS.aboutUpdatedAt));
+const sinceDate = formatDateCN(new Date(SINCE_DATE));
+---
+
+<BaseLayout title="关于" description="关于小伟与写写代码博客">
+  <div class="cmd-label">$ cat ./about.md</div>
+  <h1 style="font-size: 1.25rem; margin: 0 0 0.4rem;">~/about — 关于</h1>
+  <p style="font-size: 0.78rem; color: var(--muted); margin: 0 0 1.75rem;">
+    建站时间: {sinceDate} · 最近更新: {aboutUpdatedDate}
+  </p>
+
+  <div class="panel" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.75rem;">
+    <img
+      src={AUTHOR_LOGO}
+      alt={AUTHOR_NAME}
+      width="56"
+      height="56"
+      style="border-radius: 50%; object-fit: cover; border: 1px solid var(--border);"
+    />
+    <div>
+      <div style="font-weight: 700; font-size: 1.02rem;">
+        {AUTHOR_NAME}{' '}
+        <span style="font-weight: 400; font-size: 0.82rem; color: var(--accent);">
+          ({AUTHOR_DESC})
+        </span>
+      </div>
+      <div style="font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem;">
+        Email: <a href={`mailto:${AUTHOR_EMAIL}`} style="color: var(--accent);">{AUTHOR_EMAIL}</a>
+        {' · '}
+        GitHub: <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" style="color: var(--accent);">{GITHUB_URL}</a>
+        {' '}
+        <span style="font-size: 0.74rem;">(原: {OLD_GITHUB_URL})</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    {ABOUT_PARAGRAPHS.map((p) => <p>{p}</p>)}
+  </div>
+
+  <Giscus />
+</BaseLayout>

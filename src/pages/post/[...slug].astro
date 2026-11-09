@@ -1,0 +1,152 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Giscus from '../../components/Giscus.astro';
+import { getCollection, render } from 'astro:content';
+import { formatDateCN, PAY_ALIPAY, PAY_WECHAT } from '../../consts';
+
+export async function getStaticPaths() {
+  const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+  );
+
+  const paths: any[] = [];
+  posts.forEach((post, idx) => {
+    const props = {
+      post,
+      prevPost: posts[idx + 1] || null,
+      nextPost: posts[idx - 1] || null,
+    };
+    paths.push({ params: { slug: post.id }, props });
+    if (post.data.vanblogId && String(post.data.vanblogId) !== post.id) {
+      paths.push({ params: { slug: String(post.data.vanblogId) }, props });
+    }
+  });
+  return paths;
+}
+
+const { post, prevPost, nextPost } = Astro.props;
+const { Content, headings } = await render(post);
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+
+const wordCount = (post.body || '').length;
+const readMin = Math.max(1, Math.round(wordCount / 450));
+---
+
+<BaseLayout title={post.data.title} description={post.data.description}>
+  <article>
+    <header style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.5rem;">
+      <div style="margin-bottom: 0.75rem;">
+        <a href="/posts" style="font-size: 0.78rem; color: var(--muted);">
+          ← cd ../posts
+        </a>
+      </div>
+
+      <h1 style="font-size: 1.35rem; line-height: 1.4; margin: 0 0 0.65rem;">
+        {post.data.title}
+      </h1>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.78rem; color: var(--muted);">
+        <span>发布: {formatDateCN(post.data.pubDate)}</span>
+        {
+          post.data.updatedDate && (
+            <span>更新: {formatDateCN(post.data.updatedDate)}</span>
+          )
+        }
+        <a
+          href={`/posts?category=${encodeURIComponent(post.data.category)}`}
+          style="color: var(--accent);"
+        >
+          分类: [{post.data.category}]
+        </a>
+        <span>作者: {post.data.author}</span>
+        <span>阅读: ~{readMin} min</span>
+        {
+          post.data.tags.length > 0 && (
+            <span style="color: var(--accent);">
+              {post.data.tags.map((t) => `#${t}`).join(' ')}
+            </span>
+          )
+        }
+      </div>
+    </header>
+
+    {
+      tocHeadings.length > 1 && (
+        <details class="toc-box" open>
+          <summary>TABLE OF CONTENTS (目录)</summary>
+          <ul class="toc-list">
+            {tocHeadings.map((h) => (
+              <li style={`margin-left: ${(h.depth - 2) * 1}rem;`}>
+                <a href={`#${h.slug}`}>{h.text}</a>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )
+    }
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    <details class="toc-box" style="margin-top: 2.25rem;">
+      <summary>☕ 赞赏支持 (Donate)</summary>
+      <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 0.85rem; align-items: center;">
+        <div style="text-align: center;">
+          <img
+            src={PAY_WECHAT}
+            alt="微信赞赏"
+            style="max-width: 160px; border-radius: 6px; border: 1px solid var(--border);"
+            loading="lazy"
+          />
+          <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">
+            微信支付
+          </div>
+        </div>
+        <div style="text-align: center;">
+          <img
+            src={PAY_ALIPAY}
+            alt="支付宝赞赏"
+            style="max-width: 160px; border-radius: 6px; border: 1px solid var(--border);"
+            loading="lazy"
+          />
+          <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">
+            支付宝
+          </div>
+        </div>
+      </div>
+    </details>
+  </article>
+
+  {
+    (prevPost || nextPost) && (
+      <nav
+        style="margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px dashed var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; font-size: 0.82rem;"
+        aria-label="Post Navigation"
+      >
+        <div>
+          {prevPost && (
+            <a href={`/posts/${prevPost.id}`}>
+              <span style="color: var(--muted); display: block; font-size: 0.74rem;">
+                ← older
+              </span>
+              <span>{prevPost.data.title}</span>
+            </a>
+          )}
+        </div>
+        <div style="text-align: right;">
+          {nextPost && (
+            <a href={`/posts/${nextPost.id}`}>
+              <span style="color: var(--muted); display: block; font-size: 0.74rem;">
+                newer →
+              </span>
+              <span>{nextPost.data.title}</span>
+            </a>
+          )}
+        </div>
+      </nav>
+    )
+  }
+
+  <Giscus />
+</BaseLayout>

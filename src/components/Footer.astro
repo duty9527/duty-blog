@@ -1,14 +1,25 @@
 ---
-import { AUTHOR_NAME, GITHUB_URL } from '../consts';
+import {
+  AUTHOR_NAME,
+  GITHUB_URL,
+  AUTHOR_EMAIL,
+  BEIAN_NUMBER,
+  BEIAN_URL,
+} from '../consts';
 const year = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
   <div>
-    © {year} {AUTHOR_NAME} · Built with Astro · Deployed on Cloudflare
+    © 2022–{year} {AUTHOR_NAME} ·{' '}
+    <a href={BEIAN_URL} target="_blank" rel="noopener noreferrer">
+      {BEIAN_NUMBER}
+    </a>
   </div>
   <div class="footer-links">
     <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">github</a>
+    <span>·</span>
+    <a href={`mailto:${AUTHOR_EMAIL}`}>email</a>
     <span>·</span>
     <a href="/rss.xml">rss.xml</a>
     <span>·</span>
@@ -17,3 +28,4 @@ const year = new Date().getFullYear();
     <a href="#top">top ↑</a>
   </div>
 </footer>
+

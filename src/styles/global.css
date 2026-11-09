@@ -402,6 +402,33 @@ a:hover {
   color: var(--accent);
 }
 
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin: 0.85rem 0;
+  display: block;
+}
+
+.callout {
+  margin: 1.25rem 0;
+  padding: 0.85rem 1.1rem;
+  border-left: 3px solid #f59e0b;
+  background: var(--surface);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+}
+
+.callout::before {
+  content: attr(data-title);
+  display: block;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
+}
+
 /* Shiki Dual Theme Support */
 html.dark .astro-code,
 html.dark .astro-code span {

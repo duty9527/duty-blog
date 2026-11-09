@@ -1,5 +1,5 @@
 ---
-import { SITE_PROMPT, SITE_TAGLINE } from '../consts';
+import { SITE_TITLE, SITE_TAGLINE } from '../consts';
 
 const pathname = Astro.url.pathname;
 const isActive = (path: string) =>
@@ -9,16 +9,16 @@ const isActive = (path: string) =>
 <header class="site-header">
   <div>
     <a href="/" class="brand-title">
-      <span class="brand-prompt">~</span>/duty-blog<span class="cursor-blink" aria-hidden="true"></span>
+      <span class="brand-prompt">~</span>/{SITE_TITLE}<span class="cursor-blink" aria-hidden="true"></span>
     </a>
     <p class="brand-tagline">{SITE_TAGLINE}</p>
   </div>
 
   <nav class="site-nav" aria-label="Primary Navigation">
-    <a href="/" class:list={['nav-link', { active: isActive('/') }]}>~/index</a>
-    <a href="/posts" class:list={['nav-link', { active: isActive('/posts') }]}>~/posts</a>
-    <a href="/notes" class:list={['nav-link', { active: isActive('/notes') }]}>~/notes</a>
-    <a href="/now" class:list={['nav-link', { active: isActive('/now') }]}>~/now</a>
+    <a href="/" class:list={['nav-link', { active: isActive('/') }]}>~/首页</a>
+    <a href="/posts" class:list={['nav-link', { active: isActive('/posts') || isActive('/post') }]}>~/归档</a>
+    <a href="/notes" class:list={['nav-link', { active: isActive('/notes') }]}>~/随笔</a>
+    <a href="/about" class:list={['nav-link', { active: isActive('/about') || isActive('/now') }]}>~/关于</a>
     <a href="/rss.xml" class="nav-link">rss</a>
     <button id="theme-toggle" class="theme-btn" type="button" aria-label="Toggle color theme">
       <span id="theme-icon">☾</span>
