@@ -352,7 +352,28 @@ function uninstallMacDaemon() {
   }
 }
 
-// 模式 3：导入 Apple 手记 (Apple Journal) 导出的目录或压缩包
+// 构建已有文章标题索引（用于增量去重，防止“全量导出”重复生成旧手记）
+function getExistingBlogMap() {
+  const existingMap = new Map();
+  if (!fs.existsSync(BLOG_DIR)) return existingMap;
+  for (const f of fs.readdirSync(BLOG_DIR).filter((x) => x.endsWith('.md'))) {
+    const fullPath = path.join(BLOG_DIR, f);
+    const txt = fs.readFileSync(fullPath, 'utf-8');
+    const titleM = txt.match(/^title:\s*"(.*)"/m);
+    const idM = txt.match(/^vanblogId:\s*(\d+)/m);
+    const updM = txt.match(/^updatedDate:\s*"(.*)"/m);
+    if (titleM) {
+      existingMap.set(titleM[1], {
+        file: f,
+        id: idM ? Number.parseInt(idM[1], 10) : Number.parseInt(path.basename(f, '.md'), 10),
+        updatedMs: updM ? new Date(updM[1]).getTime() : 0,
+      });
+    }
+  }
+  return existingMap;
+}
+
+// 模式 3：导入 Apple 手记 (Apple Journal) 导出的目录或压缩包（自带增量去重，支持多次“全量导出”只导入新条目）
 function runJournalImport(inputPath) {
   if (!inputPath || !fs.existsSync(inputPath)) {
     console.error('❌ 请提供有效的 Apple 手记导出目录或 zip 路径，例如：npm run import:journal -- ~/Downloads/AppleJournalEntries');
@@ -367,31 +388,35 @@ function runJournalImport(inputPath) {
     targetDir = tmpDir;
   }
 
-  // 查找 Entries 目录或所有 .html 文件
-  const htmlFiles = [];
+  // 查找 Entries 目录或所有 .html / .md 文件（兼容官方导出 .html 与 journal-cli 导出的 .md）
+  const entryFiles = [];
   function walkDir(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walkDir(full);
-      else if (entry.name.endsWith('.html')) htmlFiles.push(full);
+      else if (entry.name.endsWith('.html') || entry.name.endsWith('.md')) entryFiles.push(full);
     }
   }
   walkDir(targetDir);
 
-  if (htmlFiles.length === 0) {
-    console.log('ℹ️ 未在导出包中找到 .html 手记条目文件。');
-    return;
+  if (entryFiles.length === 0) {
+    console.log('ℹ️ 未在导出包中找到 .html 或 .md 手记条目文件。');
+    return 0;
   }
 
   fs.mkdirSync(IMG_DIR, { recursive: true });
+  const existingMap = getExistingBlogMap();
+  let importedCount = 0;
 
-  for (const htmlFile of htmlFiles.sort()) {
-    const rawHtml = fs.readFileSync(htmlFile, 'utf-8');
-    const baseName = path.basename(htmlFile, '.html');
+  for (const entryFile of entryFiles.sort()) {
+    const rawContent = fs.readFileSync(entryFile, 'utf-8');
+    const ext = path.extname(entryFile);
+    const baseName = path.basename(entryFile, ext);
+
     // 尝试从文件名或内容提取日期 (如 2025-05-12_...)
     const dateMatch =
       baseName.match(/(\d{4}-\d{2}-\d{2})/) ||
-      rawHtml.match(/(\d{4}年\d{1,2}月\d{1,2}日|\d{4}-\d{2}-\d{2})/);
+      rawContent.match(/(\d{4}年\d{1,2}月\d{1,2}日|\d{4}-\d{2}-\d{2})/);
     let pubDate = new Date();
     if (dateMatch) {
       const normalized = dateMatch[1]
@@ -402,41 +427,118 @@ function runJournalImport(inputPath) {
       if (!Number.isNaN(parsed.getTime())) pubDate = parsed;
     }
 
-    // 处理手记引用的图片资源
-    const entryDir = path.dirname(htmlFile);
-    const imgLinks = [];
-    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-    let match;
-    while ((match = imgRegex.exec(rawHtml)) !== null) {
-      const relSrc = match[1];
-      const absImg = path.resolve(entryDir, relSrc);
-      if (fs.existsSync(absImg)) {
-        const imgName = `journal-${Date.now()}-${path.basename(absImg)}`;
-        fs.copyFileSync(absImg, path.join(IMG_DIR, imgName));
-        imgLinks.push(`![](/img/${imgName})`);
+    const entryDir = path.dirname(entryFile);
+    let title = '';
+    let mdBody = '';
+
+    if (ext === '.html') {
+      // 处理官方 HTML 导出引用的图片资源（使用文件内容哈希命名，避免重复拷贝）
+      const imgLinks = [];
+      const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+      let match;
+      while ((match = imgRegex.exec(rawContent)) !== null) {
+        const relSrc = match[1];
+        const absImg = path.resolve(entryDir, relSrc);
+        if (fs.existsSync(absImg)) {
+          const buf = fs.readFileSync(absImg);
+          const hash = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 14);
+          const imgExt = path.extname(absImg) || '.jpg';
+          const imgName = `journal-${hash}${imgExt}`;
+          fs.writeFileSync(path.join(IMG_DIR, imgName), buf);
+          imgLinks.push(`![](/img/${imgName})`);
+        }
+      }
+
+      const titleMatch =
+        rawContent.match(/<div[^>]*class=["'][^"']*title[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
+        rawContent.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) ||
+        rawContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      title = titleMatch ? htmlToMarkdown(titleMatch[1]).trim() : '';
+
+      mdBody = htmlToMarkdown(rawContent);
+      if (imgLinks.length > 0) {
+        mdBody += '\n\n' + imgLinks.join('\n\n');
+      }
+    } else {
+      // 处理第三方逆向工具 journal-cli 导出的 Markdown 及本地附件
+      mdBody = rawContent.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (fullMatch, alt, relSrc) => {
+        if (/^https?:\/\//i.test(relSrc) || relSrc.startsWith('/img/')) return fullMatch;
+        const absImg = path.resolve(entryDir, relSrc);
+        if (fs.existsSync(absImg)) {
+          const buf = fs.readFileSync(absImg);
+          const hash = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 14);
+          const imgExt = path.extname(absImg) || '.jpg';
+          const imgName = `journal-${hash}${imgExt}`;
+          fs.writeFileSync(path.join(IMG_DIR, imgName), buf);
+          return `![${alt}](/img/${imgName})`;
+        }
+        return fullMatch;
+      });
+      const firstHeading = mdBody.match(/^#\s+(.+)$/m);
+      if (firstHeading) {
+        title = firstHeading[1].trim();
       }
     }
 
-    const titleMatch =
-      rawHtml.match(/<div[^>]*class=["'][^"']*title[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
-      rawHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) ||
-      rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    const title = titleMatch ? htmlToMarkdown(titleMatch[1]).trim() : '';
+    const effectiveTitle =
+      title ||
+      mdBody
+        .split('\n')
+        .map((l) => l.replace(/^[#*>-]+\s*/, '').trim())
+        .find(Boolean)
+        ?.slice(0, 28) ||
+      `手记 ${toCNIsoString(pubDate).slice(0, 10)}`;
 
-    let mdBody = htmlToMarkdown(rawHtml);
-    if (imgLinks.length > 0) {
-      mdBody += '\n\n' + imgLinks.join('\n\n');
+    // 增量去重：如果同标题手记已存在，直接跳过，避免“全量导出”重复生成
+    if (existingMap.has(effectiveTitle)) {
+      continue;
     }
 
     writeBlogPost({
-      title,
+      title: effectiveTitle,
       content: mdBody,
       category: '随笔',
       tags: ['手记', '随笔'],
       pubDate,
       updatedDate: pubDate,
     });
+    existingMap.set(effectiveTitle, { file: '', id: 0, updatedMs: pubDate.getTime() });
+    importedCount++;
   }
+
+  console.log(`🎉 Apple 手记导入完成：本次新增 ${importedCount} 篇（已存在条目自动跳过）。`);
+  return importedCount;
+}
+
+// 模式 4：通过开源逆向工具 journal-cli (omarshahine/apple-journal-cli) 直接读取 Mac 端 Journal.app 数据库
+function runJournalCliSync(autoPush = false) {
+  try {
+    execFileSync('which', ['journal-cli'], { stdio: 'ignore' });
+  } catch {
+    console.log(
+      'ℹ️ 未检测到 journal-cli。如需在 Mac 上免导出直读 Apple 手记数据库，可运行: brew install omarshahine/tap/journal-cli'
+    );
+    return 0;
+  }
+
+  const tmpOut = path.join('/tmp', `journal-cli-export-${Date.now()}`);
+  fs.mkdirSync(tmpOut, { recursive: true });
+  execFileSync('journal-cli', ['export', '--dir', tmpOut], { stdio: 'inherit' });
+  const count = runJournalImport(tmpOut);
+  if (autoPush && count > 0) {
+    try {
+      execFileSync('git', ['pull', '--rebase', 'origin', 'main'], { cwd: ROOT_DIR, stdio: 'inherit' });
+      execFileSync('git', ['add', 'src/content/blog/', 'public/img/'], { cwd: ROOT_DIR, stdio: 'inherit' });
+      execFileSync('git', ['commit', '-m', `sync(apple): auto sync ${count} entry(s) from Apple Journal`], {
+        cwd: ROOT_DIR,
+        stdio: 'inherit',
+      });
+      execFileSync('git', ['push', 'origin', 'main'], { cwd: ROOT_DIR, stdio: 'inherit' });
+    } catch (err) {
+      console.error('⚠️ 自动 git push 失败:', err.message);
+    }
+  }
+  return count;
 }
 
 const args = process.argv.slice(2);
@@ -447,18 +549,25 @@ if (args.includes('--from-env')) {
 } else if (args.includes('--uninstall-daemon')) {
   uninstallMacDaemon();
 } else if (args.includes('--notes')) {
-  runMacNotesSync(['博客', 'Blog', '随笔', '手记'], args.includes('--auto-push'));
+  const autoPush = args.includes('--auto-push');
+  runMacNotesSync(['博客', 'Blog', '随笔', '手记'], autoPush);
+  // 如果安装了 journal-cli，顺带同步 Mac 端 Apple 手记本地数据库
+  runJournalCliSync(autoPush);
+} else if (args.includes('--journal-cli')) {
+  runJournalCliSync(args.includes('--auto-push'));
 } else if (args.includes('--journal')) {
   const idx = args.indexOf('--journal');
   runJournalImport(args[idx + 1]);
 } else {
   console.log(`用法:
-  1. 开启 Mac 后台全自动监听同步 (iCloud 备忘录 -> 自动 git push):
+  1. 开启 Mac 后台全自动监听同步 (iCloud 备忘录 + journal-cli -> 自动 git push):
      npm run install:daemon
   2. 手动触发一次 Mac 备忘录同步:
      npm run sync:notes
-  3. 导入 Apple 手记导出包:
+  3. 导入 Apple 手记导出包 (自动增量去重，只导入新条目):
      npm run import:journal -- <导出zip或目录路径>
-  4. GitHub Actions 云端发布:
+  4. 使用第三方 journal-cli 直读 Mac 手记数据库:
+     node scripts/sync-apple.mjs --journal-cli
+  5. GitHub Actions 云端发布:
      node scripts/sync-apple.mjs --from-env`);
 }
