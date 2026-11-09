@@ -9,7 +9,9 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "sync:notes": "node scripts/sync-apple.mjs --notes",
+    "import:journal": "node scripts/sync-apple.mjs --journal"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.11",

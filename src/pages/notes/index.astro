@@ -4,7 +4,15 @@ import { getCollection, render } from 'astro:content';
 import { formatDateCN } from '../../consts';
 
 const rawEssays = (
-  await getCollection('blog', ({ data }) => !data.draft && data.category === '随笔')
+  await getCollection(
+    'blog',
+    ({ data }) =>
+      !data.draft &&
+      (data.category === '随笔' ||
+        data.category === '手记' ||
+        data.tags.includes('手记') ||
+        data.tags.includes('备忘录'))
+  )
 ).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
 const essays = await Promise.all(
@@ -15,11 +23,13 @@ const essays = await Promise.all(
 );
 ---
 
-<BaseLayout title="随笔" description="日常生活随录与思考随笔">
-  <div class="cmd-label">$ cat ./posts/随笔/*.md</div>
-  <h1 style="font-size: 1.25rem; margin: 0 0 0.4rem;">随笔 (Essays & Notes)</h1>
+<BaseLayout title="随笔 · 手记" description="日常生活随录、Apple 手记与备忘录随笔">
+  <div class="cmd-label">$ cat ./posts/{'{随笔,手记}'}/*.md</div>
+  <h1 style="font-size: 1.25rem; margin: 0 0 0.4rem;">
+    随笔 · 手记 (Essays & Apple Journal)
+  </h1>
   <p style="font-size: 0.82rem; color: var(--muted); margin: 0 0 2rem;">
-    记录生活与日常感悟 —— Life Is Knowledge。
+    记录生活与日常感悟（支持从 Apple 手记与备忘录一键同步）—— Life Is Knowledge。
   </p>
 
   <div class="notes-stream">

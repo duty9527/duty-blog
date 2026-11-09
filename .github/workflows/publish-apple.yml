@@ -1,0 +1,64 @@
+name: Publish from Apple Notes & Journal
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: '标题（手记留空时自动按日期/首句生成）'
+        required: false
+        default: ''
+      content:
+        description: '正文内容 (Markdown / 纯文本)'
+        required: true
+      category:
+        description: '分类 (如: 随笔 / 手记 / Linux / Go)'
+        required: false
+        default: '随笔'
+      tags:
+        description: '标签 (逗号分隔，如: 手记,随笔)'
+        required: false
+        default: '手记'
+      source:
+        description: '来源 (apple-journal 或 apple-notes)'
+        required: false
+        default: 'apple-journal'
+  repository_dispatch:
+    types: [publish-apple]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Create Markdown post from payload
+        env:
+          INPUT_TITLE: ${{ github.event.inputs.title || github.event.client_payload.title || '' }}
+          INPUT_CONTENT: ${{ github.event.inputs.content || github.event.client_payload.content || '' }}
+          INPUT_CATEGORY: ${{ github.event.inputs.category || github.event.client_payload.category || '随笔' }}
+          INPUT_TAGS: ${{ github.event.inputs.tags || github.event.client_payload.tags || '手记' }}
+          INPUT_SOURCE: ${{ github.event.inputs.source || github.event.client_payload.source || 'apple-journal' }}
+          INPUT_DATE: ${{ github.event.client_payload.date || '' }}
+        run: |
+          node scripts/sync-apple.mjs --from-env
+
+      - name: Commit and Push
+        run: |
+          git config user.name "duty9527"
+          git config user.email "lwduty666@gmail.com"
+          git add src/content/blog/ public/img/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "post(apple): publish new entry from ${INPUT_SOURCE:-apple}"
+            git push
+          fi
