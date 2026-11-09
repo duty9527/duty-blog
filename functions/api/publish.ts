@@ -90,7 +90,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   let content = '';
   let category = '随笔';
   let tags: string[] = ['手记', '随笔'];
-  const uploadedImages: Array<{ filename: string; base64: string }> = [];
+  const rawUploads: Array<{ origName: string; ext: string; base64: string }> = [];
 
   const contentType = request.headers.get('Content-Type') || '';
 
@@ -107,13 +107,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           .filter(Boolean);
       }
 
-      for (const [key, val] of form.entries()) {
+      for (const [, val] of form.entries()) {
         if (val instanceof File && val.size > 0) {
           const buf = await val.arrayBuffer();
           const ext = (val.name.split('.').pop() || 'jpg').toLowerCase();
-          const safeName = `journal-${Date.now()}-${uploadedImages.length + 1}.${ext}`;
-          uploadedImages.push({
-            filename: safeName,
+          rawUploads.push({
+            origName: val.name,
+            ext,
             base64: arrayBufferToBase64(buf),
           });
         }
@@ -134,13 +134,15 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       if (Array.isArray(body.images)) {
         body.images.forEach((img: any, idx: number) => {
           const rawB64 = String(img.base64 || img.data || '').replace(
-            /^data:image\/\w+;base64,/,
+            /^data:[^;]+;base64,/,
             ''
           );
           if (rawB64) {
-            const ext = String(img.name || 'jpg').split('.').pop() || 'jpg';
-            uploadedImages.push({
-              filename: `journal-${Date.now()}-${idx + 1}.${ext}`,
+            const origName = String(img.name || `photo-${idx + 1}.jpg`);
+            const ext = (origName.split('.').pop() || 'jpg').toLowerCase();
+            rawUploads.push({
+              origName,
+              ext,
               base64: rawB64,
             });
           }
@@ -154,12 +156,47 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     );
   }
 
-  if (!content && uploadedImages.length === 0) {
+  if (!content && rawUploads.length === 0) {
     return new Response(
       JSON.stringify({ ok: false, error: 'content or images is required' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }
+
+  // 将上传的静态图与 Live Photo 实况视频 (.mov / .mp4) 自动配对
+  const videoExts = new Set(['mov', 'mp4']);
+  const imageUploads = rawUploads.filter((u) => !videoExts.has(u.ext));
+  const videoUploads = rawUploads.filter((u) => videoExts.has(u.ext));
+  const usedVideos = new Set<number>();
+  const ts = Date.now();
+
+  const uploadedFiles: Array<{ filename: string; base64: string }> = [];
+  const imageMarkdowns: string[] = [];
+
+  imageUploads.forEach((img, idx) => {
+    const stem = `journal-${ts}-${idx + 1}`;
+    const imgFilename = `${stem}.${img.ext}`;
+    uploadedFiles.push({ filename: imgFilename, base64: img.base64 });
+
+    const origStem = img.origName.replace(/\.[^.]+$/, '').toLowerCase();
+    // 优先按同名文件配对 (例如 IMG_1234.JPG + IMG_1234.MOV)，否则按顺序配对
+    let matchedVideoIdx = videoUploads.findIndex(
+      (v, vIdx) => !usedVideos.has(vIdx) && v.origName.replace(/\.[^.]+$/, '').toLowerCase() === origStem
+    );
+    if (matchedVideoIdx === -1 && videoUploads.length === imageUploads.length && !usedVideos.has(idx)) {
+      matchedVideoIdx = idx;
+    }
+
+    if (matchedVideoIdx !== -1) {
+      usedVideos.add(matchedVideoIdx);
+      const v = videoUploads[matchedVideoIdx];
+      const videoFilename = `${stem}.${v.ext}`;
+      uploadedFiles.push({ filename: videoFilename, base64: v.base64 });
+      imageMarkdowns.push(`![live](/img/${imgFilename}?live=/img/${videoFilename})`);
+    } else {
+      imageMarkdowns.push(`![](/img/${imgFilename})`);
+    }
+  });
 
   try {
     // 1. 获取当前分支最新 commit 与 blog 目录下的文件列表以计算新文章 ID
@@ -191,25 +228,23 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       title = `手记 ${nowIso.slice(0, 10)}`;
     }
 
-    // 3. 将上传的图片构建为 Git Blobs 并追加到 Markdown 正文
+    // 3. 将上传的图片与 Live Photo .mov 视频构建为 Git Blobs
     const treeItems: Array<Record<string, string>> = [];
-    const imageMarkdowns: string[] = [];
 
-    for (const img of uploadedImages) {
+    for (const fileObj of uploadedFiles) {
       const blobRes = await ghApi('/git/blobs', env.GITHUB_TOKEN, {
         method: 'POST',
         body: JSON.stringify({
-          content: img.base64,
+          content: fileObj.base64,
           encoding: 'base64',
         }),
       });
       treeItems.push({
-        path: `public/img/${img.filename}`,
+        path: `public/img/${fileObj.filename}`,
         mode: '100644',
         type: 'blob',
         sha: blobRes.sha,
       });
-      imageMarkdowns.push(`![](/img/${img.filename})`);
     }
 
     let fullBody = content;
@@ -280,7 +315,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const newCommit = await ghApi('/git/commits', env.GITHUB_TOKEN, {
       method: 'POST',
       body: JSON.stringify({
-        message: `post(apple): publish "${title}" (${uploadedImages.length} image(s))`,
+        message: `post(apple): publish "${title}" (${imageUploads.length} image(s), ${videoUploads.length} live video(s))`,
         tree: newTree.sha,
         parents: [latestCommitSha],
       }),
@@ -298,7 +333,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         ok: true,
         id: nextId,
         title,
-        imagesCount: uploadedImages.length,
+        imagesCount: imageUploads.length,
+        liveVideosCount: videoUploads.length,
         url: `/posts/${nextId}`,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

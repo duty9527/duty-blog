@@ -1,0 +1,219 @@
+<!--
+  Apple Live Photo (实况照片) 播放器组件
+  自动将带有 data-live-video="/img/xxx.mov" 的 <img> 升级为 iOS 原生风格实况照片（支持悬停/点击/长按播放动态视频与现场原声）
+-->
+<script>
+  function initLivePhotos() {
+    const imgs = document.querySelectorAll<HTMLImageElement>('img[data-live-video]:not([data-live-initialized])');
+    imgs.forEach((img) => {
+      const videoSrc = img.getAttribute('data-live-video');
+      if (!videoSrc) return;
+      img.setAttribute('data-live-initialized', 'true');
+
+      const wrapper = document.createElement('span');
+      wrapper.className = 'live-photo-wrapper';
+
+      const parent = img.parentNode;
+      if (!parent) return;
+      parent.insertBefore(wrapper, img);
+      wrapper.appendChild(img);
+
+      const video = document.createElement('video');
+      video.className = 'live-photo-video';
+      video.src = videoSrc;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.loop = false;
+      wrapper.appendChild(video);
+
+      const badge = document.createElement('button');
+      badge.type = 'button';
+      badge.className = 'live-photo-badge';
+      badge.setAttribute('aria-label', '播放实况照片 (Live Photo)');
+      badge.innerHTML = `
+        <svg class="live-photo-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75">
+          <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="6" />
+          <circle cx="12" cy="12" r="9.5" stroke-dasharray="1.5 2.4" stroke-linecap="round" />
+        </svg>
+        <span class="live-photo-text">LIVE</span>
+      `;
+      wrapper.appendChild(badge);
+
+      let isPlaying = false;
+
+      const startPlayback = async (withSound: boolean) => {
+        if (isPlaying) return;
+        isPlaying = true;
+        wrapper.classList.add('is-playing');
+        video.currentTime = 0;
+        video.muted = !withSound;
+        try {
+          await video.play();
+        } catch {
+          // 浏览器未交互前若阻止有声自动播放，自动降级为静音播放
+          video.muted = true;
+          try {
+            await video.play();
+          } catch {
+            stopPlayback();
+          }
+        }
+      };
+
+      const stopPlayback = () => {
+        isPlaying = false;
+        wrapper.classList.remove('is-playing');
+        video.pause();
+      };
+
+      video.addEventListener('ended', () => {
+        stopPlayback();
+      });
+
+      // 桌面端：鼠标悬停在 LIVE 徽标或图片上自动触发实况播放
+      badge.addEventListener('mouseenter', () => startPlayback(true));
+      wrapper.addEventListener('mouseleave', () => stopPlayback());
+
+      // 点击 LIVE 徽标：强制开启原声并完整播放一次实况
+      badge.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isPlaying) {
+          stopPlayback();
+        } else {
+          startPlayback(true);
+        }
+      });
+
+      // 移动端/触屏：模拟 iPhone 长按图片播放实况，松手恢复静态
+      let pressTimer: number | null = null;
+      wrapper.addEventListener(
+        'touchstart',
+        (e) => {
+          if ((e.target as HTMLElement)?.closest('.live-photo-badge')) return;
+          pressTimer = window.setTimeout(() => {
+            startPlayback(true);
+          }, 220);
+        },
+        { passive: true }
+      );
+
+      const cancelTouch = () => {
+        if (pressTimer !== null) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+        if (isPlaying) stopPlayback();
+      };
+      wrapper.addEventListener('touchend', cancelTouch, { passive: true });
+      wrapper.addEventListener('touchcancel', cancelTouch, { passive: true });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLivePhotos);
+  } else {
+    initLivePhotos();
+  }
+  document.addEventListener('astro:page-load', initLivePhotos);
+</script>
+
+<style is:global>
+  .live-photo-wrapper {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    border-radius: 8px;
+    line-height: 0;
+    max-width: 100%;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .live-photo-wrapper > img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 !important;
+    border-radius: 8px;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .live-photo-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(1);
+    transition:
+      opacity 0.28s ease,
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .live-photo-wrapper.is-playing > img {
+    transform: scale(1.025);
+  }
+
+  .live-photo-wrapper.is-playing > .live-photo-video {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+
+  .live-photo-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px 3px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    background: rgba(28, 28, 30, 0.58);
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    color: rgba(255, 255, 255, 0.92);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background 0.2s ease,
+      transform 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .live-photo-badge:hover {
+    background: rgba(28, 28, 30, 0.78);
+    transform: scale(1.04);
+  }
+
+  .live-photo-wrapper.is-playing .live-photo-badge {
+    background: rgba(255, 214, 10, 0.92);
+    color: #1c1c1e;
+    border-color: rgba(255, 214, 10, 0.95);
+  }
+
+  .live-photo-wrapper.is-playing .live-photo-icon {
+    animation: live-ring-pulse 1.1s ease-in-out infinite;
+  }
+
+  @keyframes live-ring-pulse {
+    0%,
+    100% {
+      transform: scale(1) rotate(0deg);
+    }
+    50% {
+      transform: scale(1.14) rotate(25deg);
+    }
+  }
+</style>

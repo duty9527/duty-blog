@@ -431,8 +431,29 @@ function runJournalImport(inputPath) {
     let title = '';
     let mdBody = '';
 
+    // 辅助函数：检测图片同目录下是否存在同名实况视频 (.mov / .mp4)，若存在则一同拷贝为同名实况文件
+    function copyImageAndLiveVideo(absImg) {
+      const buf = fs.readFileSync(absImg);
+      const hash = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 14);
+      const imgExt = path.extname(absImg) || '.jpg';
+      const baseStem = `journal-${hash}`;
+      const imgName = `${baseStem}${imgExt}`;
+      fs.writeFileSync(path.join(IMG_DIR, imgName), buf);
+
+      const srcNoExt = absImg.slice(0, absImg.length - path.extname(absImg).length);
+      for (const vExt of ['.mov', '.MOV', '.mp4', '.MP4']) {
+        const candidateVideo = `${srcNoExt}${vExt}`;
+        if (fs.existsSync(candidateVideo)) {
+          const vTarget = `${baseStem}${vExt.toLowerCase()}`;
+          fs.copyFileSync(candidateVideo, path.join(IMG_DIR, vTarget));
+          return { imgName, liveVideo: `/img/${vTarget}` };
+        }
+      }
+      return { imgName, liveVideo: null };
+    }
+
     if (ext === '.html') {
-      // 处理官方 HTML 导出引用的图片资源（使用文件内容哈希命名，避免重复拷贝）
+      // 处理官方 HTML 导出引用的图片资源（使用文件内容哈希命名，自动配对同名 Live Photo .mov 视频）
       const imgLinks = [];
       const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
       let match;
@@ -440,12 +461,10 @@ function runJournalImport(inputPath) {
         const relSrc = match[1];
         const absImg = path.resolve(entryDir, relSrc);
         if (fs.existsSync(absImg)) {
-          const buf = fs.readFileSync(absImg);
-          const hash = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 14);
-          const imgExt = path.extname(absImg) || '.jpg';
-          const imgName = `journal-${hash}${imgExt}`;
-          fs.writeFileSync(path.join(IMG_DIR, imgName), buf);
-          imgLinks.push(`![](/img/${imgName})`);
+          const { imgName, liveVideo } = copyImageAndLiveVideo(absImg);
+          imgLinks.push(
+            liveVideo ? `![live](/img/${imgName}?live=${liveVideo})` : `![](/img/${imgName})`
+          );
         }
       }
 
@@ -460,17 +479,15 @@ function runJournalImport(inputPath) {
         mdBody += '\n\n' + imgLinks.join('\n\n');
       }
     } else {
-      // 处理第三方逆向工具 journal-cli 导出的 Markdown 及本地附件
+      // 处理第三方逆向工具 journal-cli 导出的 Markdown 及本地附件（自动配对 Live Photo .mov）
       mdBody = rawContent.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (fullMatch, alt, relSrc) => {
         if (/^https?:\/\//i.test(relSrc) || relSrc.startsWith('/img/')) return fullMatch;
         const absImg = path.resolve(entryDir, relSrc);
         if (fs.existsSync(absImg)) {
-          const buf = fs.readFileSync(absImg);
-          const hash = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 14);
-          const imgExt = path.extname(absImg) || '.jpg';
-          const imgName = `journal-${hash}${imgExt}`;
-          fs.writeFileSync(path.join(IMG_DIR, imgName), buf);
-          return `![${alt}](/img/${imgName})`;
+          const { imgName, liveVideo } = copyImageAndLiveVideo(absImg);
+          return liveVideo
+            ? `![${alt || 'live'}](/img/${imgName}?live=${liveVideo})`
+            : `![${alt}](/img/${imgName})`;
         }
         return fullMatch;
       });
