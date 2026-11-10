@@ -36,7 +36,7 @@ const years = Array.from(postsByYear.keys()).sort((a, b) => b - a);
 ---
 
 <BaseLayout title="归档 · 分类 · 标签" description="按分类、标签与年份时间线索引的所有文章">
-  <div class="cmd-label">$ find ./posts -type f -name "*.md"</div>
+  <div class="cmd-label" id="archive-cmd">$ find ./posts -type f -name "*.md"</div>
   <h1 style="font-size: 1.25rem; margin: 0 0 1.25rem;">
     文章归档 (Categories · Tags · Timeline)
   </h1>
@@ -120,23 +120,54 @@ const years = Array.from(postsByYear.keys()).sort((a, b) => b - a);
       const tagButtons = document.querySelectorAll('#tag-filter-bar .tag-pill');
       const items = document.querySelectorAll('.archive-item');
       const yearGroups = document.querySelectorAll('.year-group');
+      const cmdLabel = document.getElementById('archive-cmd');
 
-      let activeCat = 'all';
-      let activeTag = 'all';
+      let activeCats = new Set();
+      let activeTags = new Set();
+
+      function updateCmdLabel() {
+        if (!cmdLabel) return;
+        const cats = Array.from(activeCats);
+        const tags = Array.from(activeTags);
+
+        if (cats.length === 0 && tags.length === 0) {
+          cmdLabel.textContent = '$ find ./posts -type f -name "*.md"';
+          return;
+        }
+
+        const catExpr =
+          cats.length === 1 ? `category: "${cats[0]}"` : `category: "(${cats.join('|')})"`;
+        const tagExpr = `tags:.*(${tags.join('|')})`;
+
+        if (cats.length > 0 && tags.length === 0) {
+          cmdLabel.textContent = `$ grep -lE '${catExpr}' ./posts/*.md`;
+        } else if (cats.length === 0 && tags.length > 0) {
+          cmdLabel.textContent = `$ grep -lE '${tagExpr}' ./posts/*.md`;
+        } else {
+          cmdLabel.textContent = `$ grep -lE '${catExpr}' ./posts/*.md | xargs grep -lE '${tagExpr}'`;
+        }
+      }
 
       function applyFilters() {
-        catButtons.forEach((b) =>
-          b.classList.toggle('active', b.getAttribute('data-cat') === activeCat)
-        );
-        tagButtons.forEach((b) =>
-          b.classList.toggle('active', b.getAttribute('data-tag') === activeTag)
-        );
+        catButtons.forEach((b) => {
+          const cat = b.getAttribute('data-cat') || 'all';
+          const isActive = cat === 'all' ? activeCats.size === 0 : activeCats.has(cat);
+          b.classList.toggle('active', isActive);
+        });
+
+        tagButtons.forEach((b) => {
+          const tag = b.getAttribute('data-tag') || 'all';
+          const isActive = tag === 'all' ? activeTags.size === 0 : activeTags.has(tag);
+          b.classList.toggle('active', isActive);
+        });
+
+        updateCmdLabel();
 
         items.forEach((item) => {
           const cat = item.getAttribute('data-cat') || '';
           const tags = (item.getAttribute('data-tags') || '').split(',').filter(Boolean);
-          const matchCat = activeCat === 'all' || cat === activeCat;
-          const matchTag = activeTag === 'all' || tags.includes(activeTag);
+          const matchCat = activeCats.size === 0 || activeCats.has(cat);
+          const matchTag = activeTags.size === 0 || tags.some((t) => activeTags.has(t));
           item.style.display = matchCat && matchTag ? 'flex' : 'none';
         });
 
@@ -150,14 +181,28 @@ const years = Array.from(postsByYear.keys()).sort((a, b) => b - a);
 
       catButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
-          activeCat = btn.getAttribute('data-cat') || 'all';
+          const cat = btn.getAttribute('data-cat') || 'all';
+          if (cat === 'all') {
+            activeCats.clear();
+          } else if (activeCats.has(cat)) {
+            activeCats.delete(cat);
+          } else {
+            activeCats.add(cat);
+          }
           applyFilters();
         });
       });
 
       tagButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
-          activeTag = btn.getAttribute('data-tag') || 'all';
+          const tag = btn.getAttribute('data-tag') || 'all';
+          if (tag === 'all') {
+            activeTags.clear();
+          } else if (activeTags.has(tag)) {
+            activeTags.delete(tag);
+          } else {
+            activeTags.add(tag);
+          }
           applyFilters();
         });
       });
@@ -165,8 +210,12 @@ const years = Array.from(postsByYear.keys()).sort((a, b) => b - a);
       const params = new URLSearchParams(window.location.search);
       const qCat = params.get('category');
       const qTag = params.get('tag');
-      if (qCat) activeCat = qCat;
-      if (qTag) activeTag = qTag;
+      if (qCat) {
+        qCat.split(',').filter(Boolean).forEach((c) => activeCats.add(c));
+      }
+      if (qTag) {
+        qTag.split(',').filter(Boolean).forEach((t) => activeTags.add(t));
+      }
       if (qCat || qTag) applyFilters();
     })();
   </script>
