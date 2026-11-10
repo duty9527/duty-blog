@@ -8,7 +8,7 @@ export const AUTHOR_DESC = 'a gopher';
 export const AUTHOR_LOGO = '/img/avatar.webp';
 export const SITE_LOGO =
   '/static/img/10801c252eefdfaa2db272c1a688d6af.logo__1_-removebg-preview.png';
-export const BASE_URL = 'https://dutycsd.top';
+export const BASE_URL = 'https://blog.du7y.com';
 export const GITHUB_URL = 'https://github.com/duty9527';
 export const OLD_GITHUB_URL = 'https://github.com/blue-duty';
 export const AUTHOR_EMAIL = 'lwduty666@gmail.com';

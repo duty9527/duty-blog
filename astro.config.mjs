@@ -140,7 +140,7 @@ function rehypeLocalizeImages() {
 }
 
 export default defineConfig({
-  site: process.env.SITE_URL || 'https://dutycsd.top',
+  site: process.env.SITE_URL || 'https://blog.du7y.com',
   integrations: [sitemap()],
   markdown: {
     remarkPlugins: [remarkVanblogContainers, [remarkMath, { singleDollarTextMath: false }]],
