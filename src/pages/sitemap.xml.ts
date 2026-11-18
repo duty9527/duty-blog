@@ -2,7 +2,7 @@ import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
 
 export async function GET(context: APIContext) {
-  const site = (context.site || new URL('https://dutycsd.top')).toString().replace(/\/$/, '');
+  const site = (context.site || new URL('https://blog.du7y.com')).toString().replace(/\/$/, '');
   const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
     (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
   );
